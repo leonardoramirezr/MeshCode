@@ -41,10 +41,8 @@ struct Sidecar {
 pub async fn agent_start(app: AppHandle) -> Result<(), String> {
     let (api_key, _) =
         auth::api_key()?.ok_or("Configura una API key de Anthropic para usar el chat.")?;
-    let node = executable::find("MESHCODE_NODE", "node", node_locations()).ok_or(
-        "No se encontró Node.js. Instálalo o define la variable de entorno MESHCODE_NODE.",
-    )?;
-    let script = sidecar_script(&app)?;
+    let node = find_node()?;
+    let script = script(&app, "main")?;
     let config_dir = app
         .path()
         .app_data_dir()
@@ -62,13 +60,8 @@ pub async fn agent_start(app: AppHandle) -> Result<(), String> {
     // The agent authenticates with this API key only, and keeps its sessions and settings apart
     // from any Claude Code setup (or session, if MeshCode was launched from one) on the machine.
     for (name, _) in std::env::vars_os() {
-        let name = name.to_string_lossy();
-        if name.starts_with("CLAUDECODE")
-            || name.starts_with("CLAUDE_CODE_")
-            || name.starts_with("CLAUDE_AGENT_")
-            || name.starts_with("ANTHROPIC_")
-        {
-            command.env_remove(name.as_ref());
+        if is_claude_variable(&name.to_string_lossy()) {
+            command.env_remove(name);
         }
     }
     command
@@ -190,22 +183,37 @@ fn stop(sidecar: Sidecar) {
     });
 }
 
-/// Development runs the TypeScript source directly (Node strips the types); bundles ship the build
-/// from `pnpm build:agent`.
-fn sidecar_script(app: &AppHandle) -> Result<PathBuf, String> {
+/// Variables that configure Claude Code or the Anthropic API, including those a Claude Code
+/// session sets for its commands (and so for MeshCode, when it is launched from one).
+pub fn is_claude_variable(name: &str) -> bool {
+    name.starts_with("CLAUDECODE")
+        || name.starts_with("CLAUDE_CODE_")
+        || name.starts_with("CLAUDE_AGENT_")
+        || name.starts_with("ANTHROPIC_")
+}
+
+/// A script in `agent/`, like `main` or `mcp`. Development runs the TypeScript source directly
+/// (Node strips the types); bundles ship the build from `pnpm build:agent`.
+pub fn script(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
     let script = if cfg!(debug_assertions) {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../agent/main.ts")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../agent/{name}.ts"))
     } else {
         app.path()
             .resource_dir()
             .map_err(|e| e.to_string())?
-            .join("agent/main.mjs")
+            .join(format!("agent/{name}.mjs"))
     };
     if script.is_file() {
         Ok(script)
     } else {
         Err(format!("No se encontró el agente en {}", script.display()))
     }
+}
+
+pub fn find_node() -> Result<PathBuf, String> {
+    executable::find("MESHCODE_NODE", "node", node_locations()).ok_or(
+        "No se encontró Node.js. Instálalo o define la variable de entorno MESHCODE_NODE.".into(),
+    )
 }
 
 fn node_locations() -> Vec<PathBuf> {

@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
   import { api, basename, isBlendFile, onFsChange, subscribe, type FsChange } from "$lib/api";
+  import { ClaudeCodeSession } from "$lib/chat/claude-code.svelte";
+  import { preferences } from "$lib/chat/preferences";
   import { ChatSession } from "$lib/chat/session.svelte";
   import ActivityBar, { type SidebarView } from "./ActivityBar.svelte";
   import BlendViewer from "./BlendViewer.svelte";
-  import ChatView from "./chat/ChatView.svelte";
+  import ChatView, { type ChatProvider } from "./chat/ChatView.svelte";
   import FileIcon from "./FileIcon.svelte";
   import TreeItem, { type TreeNode } from "./TreeItem.svelte";
 
@@ -31,6 +33,8 @@
   const DEFAULT_WIDTHS: Record<SidebarView, number> = { explorer: 260, chat: 400 };
 
   const chat = new ChatSession(untrack(() => folder));
+  const claudeCode = new ClaudeCodeSession(untrack(() => folder));
+  let chatProvider = $state<ChatProvider>(preferences.get("provider") === "claude-code" ? "claude-code" : "api");
   const layout = loadLayout();
   let view = $state<SidebarView>(layout.view);
   let widths = $state(layout.widths);
@@ -39,7 +43,7 @@
 
   const chatVisible = $derived(sidebarVisible && view === "chat");
   const chatBadge = $derived(
-    chatVisible ? null : chat.pendingPermissions > 0 ? "attention" : chat.busy ? "busy" : null,
+    chatVisible ? null : chat.pendingPermissions > 0 || claudeCode.attention ? "attention" : chat.busy ? "busy" : null,
   );
 
   onMount(() => {
@@ -49,12 +53,14 @@
     return () => {
       unlisten();
       disconnectChat();
+      claudeCode.stop();
     };
   });
 
   // Start the agent when the chat is first shown, so models load and the first reply comes sooner.
+  // Claude Code starts from its view, which knows the terminal's size.
   $effect(() => {
-    if (chatVisible && chat.auth?.source) untrack(() => chat.start());
+    if (chatVisible && chatProvider === "api" && chat.auth?.source) untrack(() => chat.start());
   });
 
   function loadLayout(): { view: SidebarView; widths: Record<SidebarView, number> } {
@@ -85,6 +91,13 @@
       await tick();
       chatView?.focus();
     }
+  }
+
+  async function setChatProvider(provider: ChatProvider) {
+    chatProvider = provider;
+    preferences.set("provider", provider);
+    await tick();
+    chatView?.focus();
   }
 
   export function toggleSidebar() {
@@ -213,7 +226,14 @@
     </div>
 
     <div class="view" class:hidden={view !== "chat"}>
-      <ChatView bind:this={chatView} session={chat} />
+      <ChatView
+        bind:this={chatView}
+        session={chat}
+        {claudeCode}
+        provider={chatProvider}
+        visible={chatVisible}
+        onProviderChange={setChatProvider}
+      />
     </div>
   </aside>
 

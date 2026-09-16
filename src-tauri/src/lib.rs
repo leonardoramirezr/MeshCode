@@ -1,6 +1,7 @@
 mod agent;
 mod auth;
 mod blend;
+mod claude_code;
 mod executable;
 mod menu;
 mod recent;
@@ -13,6 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(workspace::WatcherState::default())
         .manage(agent::AgentState::default())
+        .manage(claude_code::ClaudeCodeState::default())
         .setup(|app| {
             // Built here rather than with `Builder::menu`, which runs before app paths are available.
             menu::refresh(app.handle());
@@ -30,6 +32,10 @@ pub fn run() {
             agent::agent_start,
             agent::agent_send,
             agent::agent_stop,
+            claude_code::claude_code_start,
+            claude_code::claude_code_write,
+            claude_code::claude_code_resize,
+            claude_code::claude_code_stop,
             auth::auth_status,
             auth::save_api_key,
             auth::remove_api_key,

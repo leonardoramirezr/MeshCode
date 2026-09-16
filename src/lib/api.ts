@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, type Channel } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentCommand, AgentEvent } from "../../agent/protocol";
 
@@ -35,6 +35,9 @@ export interface AuthStatus {
   hint: string | null;
 }
 
+/** Claude Code's terminal output, then its exit code if it exits on its own. */
+export type TerminalEvent = ArrayBuffer | { exit: number | null };
+
 export const api = {
   /** Opens and starts watching a folder. Resolves to its canonical path. */
   openFolder: (path: string) => invoke<string>("open_folder", { path }),
@@ -49,6 +52,12 @@ export const api = {
   agentStart: () => invoke<void>("agent_start"),
   agentSend: (command: AgentCommand) => invoke<void>("agent_send", { command }),
   agentStop: () => invoke<void>("agent_stop"),
+  /** Starts (or restarts) Claude Code in a terminal of the given size. */
+  claudeCodeStart: (cwd: string, cols: number, rows: number, events: Channel<TerminalEvent>) =>
+    invoke<void>("claude_code_start", { cwd, cols, rows, events }),
+  claudeCodeWrite: (data: string) => invoke<void>("claude_code_write", { data }),
+  claudeCodeResize: (cols: number, rows: number) => invoke<void>("claude_code_resize", { cols, rows }),
+  claudeCodeStop: () => invoke<void>("claude_code_stop"),
   authStatus: () => invoke<AuthStatus>("auth_status"),
   saveApiKey: (key: string) => invoke<AuthStatus>("save_api_key", { key }),
   removeApiKey: () => invoke<AuthStatus>("remove_api_key"),

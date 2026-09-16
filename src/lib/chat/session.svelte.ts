@@ -12,6 +12,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentCommand, AgentEvent, PermissionRequest } from "../../../agent/protocol";
 import { api, onAgentEvent, subscribe, type AuthStatus } from "$lib/api";
+import { preferences } from "./preferences";
 
 export interface ToolResult {
   text: string;
@@ -60,24 +61,6 @@ const FATAL_ERRORS: Record<string, string> = {
   billing_error: "La cuenta de la API no tiene crédito disponible. Revisa la facturación en Claude Console.",
   oauth_org_not_allowed: "La organización de esta cuenta no puede usar la API.",
   account_on_hold: "La cuenta de Anthropic está suspendida.",
-};
-
-const preferences = {
-  get: (key: string) => {
-    try {
-      return localStorage.getItem(`meshcode.chat.${key}`);
-    } catch {
-      return null;
-    }
-  },
-  set: (key: string, value: string | null) => {
-    try {
-      if (value === null) localStorage.removeItem(`meshcode.chat.${key}`);
-      else localStorage.setItem(`meshcode.chat.${key}`, value);
-    } catch {
-      // Preferences are a convenience; ignore storage failures.
-    }
-  },
 };
 
 /** The chat for the open folder, backed by the agent sidecar. */

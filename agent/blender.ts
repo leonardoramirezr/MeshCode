@@ -23,10 +23,12 @@ export const isInside = (dir: string, file: string) => {
 
 const fileArg = z.string().describe("Path to the .blend file, absolute or relative to the working directory");
 
-export function createBlenderServer(cwd: string) {
+/** `instructions` are shown to the model with the tools, for sessions whose system prompt doesn't cover them. */
+export function createBlenderServer(cwd: string, instructions?: string) {
   return createSdkMcpServer({
     name: BLENDER_SERVER,
     version: "1.0.0",
+    instructions,
     alwaysLoad: true,
     tools: [
       tool(

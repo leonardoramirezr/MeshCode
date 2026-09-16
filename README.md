@@ -1,15 +1,18 @@
 # MeshCode
 
 Visor y editor de archivos de Blender (`.blend`) con una interfaz al estilo VS Code, hecho con Tauri + SvelteKit + three.js.
-Incluye un chat con Claude (Claude Agent SDK) que edita los archivos de la carpeta abierta.
+Incluye un chat con Claude que edita los archivos de la carpeta abierta: con el Claude Agent SDK y una API key,
+o con tu propio Claude Code y los límites de tu plan de Claude.
 
 ## Requisitos
 
 - [Blender](https://www.blender.org/download/) instalado. MeshCode lo usa en segundo plano para convertir los `.blend` a glTF.
   Se busca en las rutas de instalación habituales y en el `PATH`; también puedes indicar la ruta con la variable de entorno `BLENDER_PATH`.
-- Node.js ≥ 22.18 para el chat (ejecuta el agente). Se busca en las rutas habituales (Homebrew, Volta, nvm) y en el `PATH`;
-  también puedes indicar la ruta con la variable de entorno `MESHCODE_NODE`.
-- Una API key de Anthropic para el chat ([Claude Console](https://platform.claude.com/settings/keys)).
+- Node.js ≥ 22.18 para el chat (ejecuta el agente y las herramientas de Blender). Se busca en las rutas habituales
+  (Homebrew, Volta, nvm) y en el `PATH`; también puedes indicar la ruta con la variable de entorno `MESHCODE_NODE`.
+- Para el chat, una de estas dos:
+  - Una API key de Anthropic ([Claude Console](https://platform.claude.com/settings/keys)).
+  - [Claude Code](https://code.claude.com/docs/en/setup) instalado, con tu cuenta de Claude (Pro, Max, Team o Enterprise).
 - pnpm y Rust para desarrollar (ver `make help`).
 
 ## Uso
@@ -22,10 +25,16 @@ Incluye un chat con Claude (Claude Agent SDK) que edita los archivos de la carpe
      rueda para cambiar la velocidad. Haz clic o arrastra en el visor para mirar con el ratón (`Esc` libera el ratón).
 4. Si el archivo cambia en disco (por ejemplo, al guardarlo en Blender), el visor se actualiza automáticamente.
 
+Los modelos convertidos se guardan en la carpeta de caché de la app, así que volver a abrir un archivo sin cambios es inmediato.
+
 La barra de iconos de la izquierda cambia la barra lateral entre el **Explorador** (`⇧⌘E`) y el **Chat** (`⌃⌘I`);
 al hacer clic en el icono activo se oculta la barra lateral (`⌘B`). Arrastra su borde para cambiar el ancho.
 
 ### Chat
+
+El selector de la cabecera del chat elige con qué funciona: **API de Anthropic** o **Claude Code**.
+
+#### API de Anthropic
 
 El chat usa el Claude Agent SDK para editar los archivos de la carpeta abierta. Su función principal son los `.blend`:
 el agente tiene herramientas que ejecutan Blender en segundo plano para inspeccionar un archivo, modificarlo con código `bpy`
@@ -42,7 +51,19 @@ el agente tiene herramientas que ejecutan Blender en segundo plano para inspecci
 
 El agente guarda sus sesiones en la carpeta de datos de la app, separado de cualquier configuración de Claude Code.
 
-Los modelos convertidos se guardan en la carpeta de caché de la app, así que volver a abrir un archivo sin cambios es inmediato.
+#### Claude Code
+
+Ejecuta el Claude Code instalado en tu equipo en una terminal dentro del chat, con tu sesión, tu configuración
+(`~/.claude`) y los límites de tu plan de Claude. Es el mismo Claude Code que usas en la terminal: si no has iniciado
+sesión, usa `/login`; `/resume` retoma conversaciones anteriores de la carpeta.
+
+- Se inicia desde tu shell de inicio de sesión, como en una terminal, para que tenga tu `PATH` y tus variables.
+  Para usar otro ejecutable, define la variable de entorno `MESHCODE_CLAUDE` con su ruta.
+- MeshCode le añade sus herramientas de Blender como un servidor MCP llamado `meshcode`: inspeccionar y renderizar
+  una vista previa se permiten sin preguntar, y ejecutar código `bpy` sigue tus permisos de Claude Code, como cualquier
+  otra herramienta.
+- La primera vez en cada carpeta, Claude Code pregunta si confías en ella.
+- `Shift+Enter` añade una línea. El botón **+** de la cabecera reinicia Claude Code con una conversación nueva.
 
 ## Desarrollo
 
@@ -53,5 +74,7 @@ make build    # bundle de la app, con el agente empaquetado
 ```
 
 El agente vive en `agent/`: un proceso de Node que la app inicia y con el que se comunica por stdin/stdout
-(ver `agent/protocol.ts`). En desarrollo se ejecuta `agent/main.ts` directamente; `make build` lo empaqueta con
-`pnpm build:agent` en `src-tauri/resources/agent`, junto con los scripts de Blender y el ejecutable de Claude Code del SDK.
+(ver `agent/protocol.ts`). `agent/mcp.ts` ofrece las mismas herramientas de Blender como servidor MCP por stdio para
+Claude Code, que la app ejecuta en una pseudoterminal (`src-tauri/src/claude_code.rs`). En desarrollo se ejecutan los
+`.ts` directamente; `make build` los empaqueta con `pnpm build:agent` en `src-tauri/resources/agent`, junto con los
+scripts de Blender y el ejecutable de Claude Code del SDK.
