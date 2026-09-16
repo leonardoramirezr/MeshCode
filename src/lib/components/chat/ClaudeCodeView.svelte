@@ -29,7 +29,10 @@
     });
   });
 
-  onDestroy(() => terminal?.dispose());
+  onDestroy(() => {
+    clearTimeout(idleTimer);
+    terminal?.dispose();
+  });
 
   export function focus() {
     terminal?.focus();
@@ -39,7 +42,11 @@
   export function restart() {
     if (!terminal) return;
     terminal.reset();
-    void session.start(terminal.cols, terminal.rows, (data) => terminal?.write(data));
+    busy = false;
+    void session.start(terminal.cols, terminal.rows, (data) => {
+      terminal?.write(data);
+      noteOutput();
+    });
     terminal.focus();
   }
 
@@ -66,7 +73,10 @@
       if (event.type === "keydown") session.write("\x1b\r");
       return false;
     });
-    terminal.onData((data) => session.write(data));
+    terminal.onData((data) => {
+      lastInput = Date.now();
+      session.write(data);
+    });
     terminal.onResize(({ cols, rows }) => session.resize(cols, rows));
     terminal.onBell(() => {
       if (!visible) session.attention = true;
@@ -74,6 +84,48 @@
     terminal.open(element);
     return terminal;
   }
+
+  /** Output right after input is just its echo. */
+  const ECHO_MS = 300;
+  /** Claude Code redraws its spinner several times a second while it works. */
+  const IDLE_MS = 1500;
+  let busy = $state(false);
+  let lastInput = 0;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function noteOutput() {
+    if (Date.now() - lastInput < ECHO_MS) return;
+    busy = true;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => (busy = false), IDLE_MS);
+  }
+
+  function interrupt() {
+    lastInput = Date.now();
+    keys("\x1b");
+  }
+
+  /** Sends a slash command as if typed, replacing any draft. */
+  function command(text: string) {
+    session.write("\x15" + text + "\r");
+    terminal?.focus();
+  }
+
+  /** Sends keys Claude Code already understands (Shift+Tab, Esc). */
+  function keys(data: string) {
+    session.write(data);
+    terminal?.focus();
+  }
+
+  const ACTIONS: { label: string; title: string; run: () => void }[] = [
+    { label: "Modo", title: "Cambiar modo de permisos (⇧Tab)", run: () => keys("\x1b[Z") },
+    { label: "Modelo", title: "/model", run: () => command("/model") },
+    { label: "Esfuerzo", title: "Nivel de esfuerzo (/effort)", run: () => command("/effort") },
+    { label: "Historial", title: "/resume", run: () => command("/resume") },
+    { label: "Limpiar", title: "/clear", run: () => command("/clear") },
+    { label: "Contexto", title: "/context", run: () => command("/context") },
+    { label: "Uso", title: "/usage", run: () => command("/usage") },
+  ];
 
   function fitOnResize(node: HTMLElement) {
     const observer = new ResizeObserver(() => fit.fit());
@@ -83,6 +135,22 @@
 </script>
 
 <div class="claude-code">
+  <div class="toolbar">
+    <div class="actions">
+      {#each ACTIONS as action (action.label)}
+        <button title={action.title} disabled={session.status !== "running"} onclick={action.run}>{action.label}</button>
+      {/each}
+    </div>
+    <button
+      class="stop"
+      title="Detener (Esc)"
+      aria-label="Detener"
+      disabled={session.status !== "running" || !busy}
+      onclick={interrupt}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="3" /></svg>
+    </button>
+  </div>
   <div class="terminal" bind:this={container} {@attach fitOnResize}></div>
 
   {#if session.error}
@@ -109,6 +177,70 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 0 10px 6px;
+  }
+
+  /* The actions wrap onto more lines when narrow; the stop button sits right after them. */
+  .actions {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .toolbar button {
+    padding: 2px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .toolbar button:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .toolbar button:disabled {
+    opacity: 0.4;
+  }
+
+  .toolbar .stop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: #c93c3c;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .toolbar .stop:hover:not(:disabled) {
+    background: #d94a4a;
+  }
+
+  .toolbar .stop:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .stop svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
   }
 
   /* Margins rather than padding: the fit addon sizes the terminal to this element's width and height. */
