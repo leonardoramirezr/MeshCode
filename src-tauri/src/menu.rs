@@ -20,6 +20,7 @@ enum MenuAction {
     CloseEditor,
     ShowExplorer,
     ShowChat,
+    ShowSourceControl,
     ToggleSidebar,
 }
 
@@ -88,6 +89,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 .build(app)?,
         )
         .item(
+            &MenuItemBuilder::with_id("show_source_control", "Control de código fuente")
+                .accelerator("Ctrl+Shift+G")
+                .build(app)?,
+        )
+        .item(
             &MenuItemBuilder::with_id("show_chat", "Chat")
                 .accelerator(if cfg!(target_os = "macos") {
                     "Ctrl+Cmd+I"
@@ -152,6 +158,7 @@ pub fn handle_event(app: &AppHandle, event: MenuEvent) {
         "close_editor" => MenuAction::CloseEditor,
         "show_explorer" => MenuAction::ShowExplorer,
         "show_chat" => MenuAction::ShowChat,
+        "show_source_control" => MenuAction::ShowSourceControl,
         "toggle_sidebar" => MenuAction::ToggleSidebar,
         _ => match id.strip_prefix(RECENT_PREFIX) {
             Some(path) => MenuAction::OpenRecent {

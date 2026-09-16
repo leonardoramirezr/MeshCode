@@ -13,6 +13,8 @@ o con tu propio Claude Code y los límites de tu plan de Claude.
 - Para el chat, una de estas dos:
   - Una API key de Anthropic ([Claude Console](https://platform.claude.com/settings/keys)).
   - [Claude Code](https://code.claude.com/docs/en/setup) instalado, con tu cuenta de Claude (Pro, Max, Team o Enterprise).
+- [Git](https://git-scm.com/downloads) para el panel de control de código fuente. Se busca en las rutas habituales y en el `PATH`;
+  también puedes indicar la ruta con la variable de entorno `MESHCODE_GIT`.
 - pnpm y Rust para desarrollar (ver `make help`).
 
 ## Uso

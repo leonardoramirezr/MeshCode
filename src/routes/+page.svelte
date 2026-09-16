@@ -73,6 +73,8 @@
         return workbench?.showView("explorer");
       case "show_chat":
         return workbench?.showView("chat");
+      case "show_source_control":
+        return workbench?.showView("scm");
       case "toggle_sidebar":
         return workbench?.toggleSidebar();
     }

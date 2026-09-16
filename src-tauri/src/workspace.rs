@@ -93,11 +93,21 @@ fn watch(app: &AppHandle, root: &Path) -> Result<(), String> {
                 paths: BTreeSet::new(),
                 dirs: BTreeSet::new(),
             };
+            let mut git_changed = false;
             for event in events {
-                let hidden = event.path.components().any(|component| {
-                    HIDDEN_ENTRIES.contains(&component.as_os_str().to_string_lossy().as_ref())
-                });
-                if hidden {
+                let components: Vec<_> = event
+                    .path
+                    .components()
+                    .map(|component| component.as_os_str().to_string_lossy())
+                    .collect();
+                if components.iter().any(|name| name == ".git") {
+                    // Commits, branch switches and the like, possibly made outside MeshCode.
+                    git_changed = true;
+                }
+                if components
+                    .iter()
+                    .any(|name| HIDDEN_ENTRIES.contains(&name.as_ref()))
+                {
                     continue;
                 }
                 if let Some(parent) = event.path.parent() {
@@ -109,6 +119,9 @@ fn watch(app: &AppHandle, root: &Path) -> Result<(), String> {
             }
             if !change.paths.is_empty() {
                 let _ = handle.emit("fs-change", change);
+            }
+            if git_changed {
+                let _ = handle.emit("git-change", ());
             }
         },
     )

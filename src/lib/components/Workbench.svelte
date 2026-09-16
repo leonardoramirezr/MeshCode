@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { api, basename, isBlendFile, onFsChange, subscribe, type FsChange } from "$lib/api";
+  import { api, basename, isBlendFile, onFsChange, onGitChange, subscribe, type FsChange } from "$lib/api";
   import { ClaudeCodeSession } from "$lib/chat/claude-code.svelte";
   import { preferences } from "$lib/chat/preferences";
   import { ChatSession } from "$lib/chat/session.svelte";
+  import { SourceControl } from "$lib/source-control.svelte";
   import ActivityBar, { type SidebarView } from "./ActivityBar.svelte";
   import BlendViewer from "./BlendViewer.svelte";
   import ChatView, { type ChatProvider } from "./chat/ChatView.svelte";
   import FileIcon from "./FileIcon.svelte";
+  import SourceControlView from "./scm/SourceControlView.svelte";
   import TreeItem, { type TreeNode } from "./TreeItem.svelte";
 
   interface Props {
@@ -30,16 +32,18 @@
   const LAYOUT_KEY = "meshcode.layout";
   const MIN_SIDEBAR = 180;
   const MIN_EDITOR = 280;
-  const DEFAULT_WIDTHS: Record<SidebarView, number> = { explorer: 260, chat: 400 };
+  const DEFAULT_WIDTHS: Record<SidebarView, number> = { explorer: 260, scm: 300, chat: 400 };
 
   const chat = new ChatSession(untrack(() => folder));
   const claudeCode = new ClaudeCodeSession(untrack(() => folder));
+  const scm = new SourceControl(untrack(() => folder));
   let chatProvider = $state<ChatProvider>(preferences.get("provider") === "claude-code" ? "claude-code" : "api");
   const layout = loadLayout();
   let view = $state<SidebarView>(layout.view);
   let widths = $state(layout.widths);
   let sidebarVisible = $state(true);
   let chatView = $state<ChatView>();
+  let scmView = $state<SourceControlView>();
 
   const chatVisible = $derived(sidebarVisible && view === "chat");
   const chatBadge = $derived(
@@ -50,8 +54,15 @@
     loadChildren(root);
     const disconnectChat = chat.connect();
     const unlisten = subscribe(onFsChange(handleFsChange));
+    scm.refresh();
+    // Commits, checkouts and the like can also happen outside MeshCode, e.g. from Claude Code.
+    const refreshScm = () => scm.refresh();
+    const unlistenGit = subscribe(onGitChange(refreshScm));
+    window.addEventListener("focus", refreshScm);
     return () => {
       unlisten();
+      unlistenGit();
+      window.removeEventListener("focus", refreshScm);
       disconnectChat();
       claudeCode.stop();
     };
@@ -67,7 +78,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? "{}");
       return {
-        view: saved.view === "chat" ? "chat" : "explorer",
+        view: saved.view === "chat" || saved.view === "scm" ? saved.view : "explorer",
         widths: { ...DEFAULT_WIDTHS, ...saved.widths },
       };
     } catch {
@@ -90,6 +101,9 @@
     if (next === "chat") {
       await tick();
       chatView?.focus();
+    } else if (next === "scm") {
+      await tick();
+      scmView?.focus();
     }
   }
 
@@ -177,6 +191,7 @@
     for (const path of change.paths) {
       if (tabs.includes(path)) versions[path] = (versions[path] ?? 0) + 1;
     }
+    scm.refresh();
   }
 
   function toggle(node: TreeNode) {
@@ -184,9 +199,9 @@
     if (node.expanded && !node.children) loadChildren(node);
   }
 
-  function openFile(node: TreeNode) {
-    if (!tabs.includes(node.path)) tabs.push(node.path);
-    activeTab = node.path;
+  function openFile(path: string) {
+    if (!tabs.includes(path)) tabs.push(path);
+    activeTab = path;
   }
 
   export function closeTab(path: string | null = activeTab) {
@@ -199,7 +214,7 @@
 </script>
 
 <div class="workbench">
-  <ActivityBar active={view} {sidebarVisible} {chatBadge} onSelect={selectView} />
+  <ActivityBar active={view} {sidebarVisible} {chatBadge} scmCount={scm.status?.files.length ?? 0} onSelect={selectView} />
 
   <aside class="sidebar" class:hidden={!sidebarVisible} style:width="{widths[view]}px">
     <div class="view" class:hidden={view !== "explorer"}>
@@ -219,10 +234,14 @@
           <p class="tree-message">La carpeta está vacía.</p>
         {:else if root.children}
           {#each root.children as child (child.path)}
-            <TreeItem node={child} depth={0} selected={activeTab} onToggle={toggle} onOpen={openFile} />
+            <TreeItem node={child} depth={0} selected={activeTab} onToggle={toggle} onOpen={(node) => openFile(node.path)} />
           {/each}
         {/if}
       </div>
+    </div>
+
+    <div class="view" class:hidden={view !== "scm"}>
+      <SourceControlView bind:this={scmView} {scm} onOpenFile={openFile} />
     </div>
 
     <div class="view" class:hidden={view !== "chat"}>

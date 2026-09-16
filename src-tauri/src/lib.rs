@@ -3,6 +3,7 @@ mod auth;
 mod blend;
 mod claude_code;
 mod executable;
+mod git;
 mod menu;
 mod recent;
 mod workspace;
@@ -29,6 +30,18 @@ pub fn run() {
             recent::remove_recent_folder,
             recent::clear_recent_folders,
             blend::load_blend,
+            git::git_status,
+            git::git_init,
+            git::git_stage,
+            git::git_unstage,
+            git::git_discard,
+            git::git_commit,
+            git::git_undo_commit,
+            git::git_branches,
+            git::git_checkout,
+            git::git_create_branch,
+            git::git_push,
+            git::git_pull,
             agent::agent_start,
             agent::agent_send,
             agent::agent_stop,
