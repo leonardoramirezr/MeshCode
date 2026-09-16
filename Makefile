@@ -4,7 +4,7 @@ TAURI_DIR := src-tauri
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev dev-web build build-debug build-web preview check check-rust fmt lint test clean clean-all
+.PHONY: help install dev dev-web build build-debug build-web build-agent preview check check-rust fmt lint test clean clean-all
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -23,19 +23,23 @@ dev-web: node_modules ## Ejecuta solo el frontend (Vite) en modo desarrollo
 	$(PNPM) dev
 
 build: node_modules ## Genera el build de producción de la app (bundle)
-	$(PNPM) tauri build
+	$(PNPM) tauri build --config $(TAURI_DIR)/tauri.bundle.conf.json
 
 build-debug: node_modules ## Genera un build de la app en modo debug
-	$(PNPM) tauri build --debug
+	$(PNPM) tauri build --debug --config $(TAURI_DIR)/tauri.bundle.conf.json
 
 build-web: node_modules ## Genera solo el build del frontend
 	$(PNPM) build
 
+build-agent: node_modules ## Empaqueta el agente del chat para los bundles de la app
+	$(PNPM) build:agent
+
 preview: build-web ## Previsualiza el build del frontend
 	$(PNPM) preview
 
-check: node_modules check-rust ## Verifica tipos (Svelte/TS) y compila Rust
+check: node_modules check-rust ## Verifica tipos (Svelte/TS, agente) y compila Rust
 	$(PNPM) check
+	$(PNPM) check:agent
 
 check-rust: ## Verifica que el código Rust compile
 	cd $(TAURI_DIR) && $(CARGO) check
@@ -50,7 +54,7 @@ test: ## Ejecuta los tests de Rust
 	cd $(TAURI_DIR) && $(CARGO) test
 
 clean: ## Elimina artefactos de build
-	rm -rf build .svelte-kit
+	rm -rf build .svelte-kit $(TAURI_DIR)/resources/agent
 	cd $(TAURI_DIR) && $(CARGO) clean
 
 clean-all: clean ## Elimina artefactos de build y node_modules

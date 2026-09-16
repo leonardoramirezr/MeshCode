@@ -1,4 +1,7 @@
+mod agent;
+mod auth;
 mod blend;
+mod executable;
 mod menu;
 mod recent;
 mod workspace;
@@ -9,6 +12,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(workspace::WatcherState::default())
+        .manage(agent::AgentState::default())
         .setup(|app| {
             // Built here rather than with `Builder::menu`, which runs before app paths are available.
             menu::refresh(app.handle());
@@ -23,6 +27,12 @@ pub fn run() {
             recent::remove_recent_folder,
             recent::clear_recent_folders,
             blend::load_blend,
+            agent::agent_start,
+            agent::agent_send,
+            agent::agent_stop,
+            auth::auth_status,
+            auth::save_api_key,
+            auth::remove_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

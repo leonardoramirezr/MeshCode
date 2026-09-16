@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { api, basename, isBlendFile, onFsChange, subscribe, type FsChange } from "$lib/api";
+  import { ChatSession } from "$lib/chat/session.svelte";
+  import ActivityBar, { type SidebarView } from "./ActivityBar.svelte";
   import BlendViewer from "./BlendViewer.svelte";
+  import ChatView from "./chat/ChatView.svelte";
   import FileIcon from "./FileIcon.svelte";
   import TreeItem, { type TreeNode } from "./TreeItem.svelte";
 
@@ -22,10 +25,108 @@
   /** Per-file counter bumped on disk changes so the open viewer reloads. */
   let versions = $state<Record<string, number>>({});
 
+  const LAYOUT_KEY = "meshcode.layout";
+  const MIN_SIDEBAR = 180;
+  const MIN_EDITOR = 280;
+  const DEFAULT_WIDTHS: Record<SidebarView, number> = { explorer: 260, chat: 400 };
+
+  const chat = new ChatSession(untrack(() => folder));
+  const layout = loadLayout();
+  let view = $state<SidebarView>(layout.view);
+  let widths = $state(layout.widths);
+  let sidebarVisible = $state(true);
+  let chatView = $state<ChatView>();
+
+  const chatVisible = $derived(sidebarVisible && view === "chat");
+  const chatBadge = $derived(
+    chatVisible ? null : chat.pendingPermissions > 0 ? "attention" : chat.busy ? "busy" : null,
+  );
+
   onMount(() => {
     loadChildren(root);
-    return subscribe(onFsChange(handleFsChange));
+    const disconnectChat = chat.connect();
+    const unlisten = subscribe(onFsChange(handleFsChange));
+    return () => {
+      unlisten();
+      disconnectChat();
+    };
   });
+
+  // Start the agent when the chat is first shown, so models load and the first reply comes sooner.
+  $effect(() => {
+    if (chatVisible && chat.auth?.source) untrack(() => chat.start());
+  });
+
+  function loadLayout(): { view: SidebarView; widths: Record<SidebarView, number> } {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? "{}");
+      return {
+        view: saved.view === "chat" ? "chat" : "explorer",
+        widths: { ...DEFAULT_WIDTHS, ...saved.widths },
+      };
+    } catch {
+      return { view: "explorer", widths: { ...DEFAULT_WIDTHS } };
+    }
+  }
+
+  function saveLayout() {
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({ view, widths }));
+    } catch {
+      // The layout is a convenience; ignore storage failures.
+    }
+  }
+
+  export async function showView(next: SidebarView) {
+    view = next;
+    sidebarVisible = true;
+    saveLayout();
+    if (next === "chat") {
+      await tick();
+      chatView?.focus();
+    }
+  }
+
+  export function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+  }
+
+  /** Like VS Code, clicking the active view's icon hides the sidebar. */
+  function selectView(next: SidebarView) {
+    if (sidebarVisible && view === next) sidebarVisible = false;
+    else showView(next);
+  }
+
+  function setSidebarWidth(width: number) {
+    const max = Math.max(MIN_SIDEBAR, window.innerWidth - 48 - MIN_EDITOR);
+    widths[view] = Math.round(Math.min(Math.max(width, MIN_SIDEBAR), max));
+  }
+
+  function startResize(event: PointerEvent) {
+    const sash = event.currentTarget as HTMLElement;
+    const startX = event.clientX;
+    const startWidth = widths[view];
+    sash.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent) => setSidebarWidth(startWidth + moveEvent.clientX - startX);
+    const end = () => {
+      sash.removeEventListener("pointermove", move);
+      sash.removeEventListener("pointerup", end);
+      sash.removeEventListener("pointercancel", end);
+      saveLayout();
+    };
+    sash.addEventListener("pointermove", move);
+    sash.addEventListener("pointerup", end);
+    sash.addEventListener("pointercancel", end);
+  }
+
+  function resizeWithKeys(event: KeyboardEvent) {
+    const step = event.shiftKey ? 50 : 10;
+    if (event.key === "ArrowLeft") setSidebarWidth(widths[view] - step);
+    else if (event.key === "ArrowRight") setSidebarWidth(widths[view] + step);
+    else return;
+    event.preventDefault();
+    saveLayout();
+  }
 
   async function loadChildren(node: TreeNode) {
     try {
@@ -85,28 +186,56 @@
 </script>
 
 <div class="workbench">
-  <aside class="sidebar">
-    <div class="sidebar-title">
-      <span>Explorador</span>
-      <button class="icon-button" title="Cerrar carpeta" aria-label="Cerrar carpeta" onclick={onCloseFolder}>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.3" />
-        </svg>
-      </button>
+  <ActivityBar active={view} {sidebarVisible} {chatBadge} onSelect={selectView} />
+
+  <aside class="sidebar" class:hidden={!sidebarVisible} style:width="{widths[view]}px">
+    <div class="view" class:hidden={view !== "explorer"}>
+      <div class="sidebar-title">
+        <span>Explorador</span>
+        <button class="icon-button" title="Cerrar carpeta" aria-label="Cerrar carpeta" onclick={onCloseFolder}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.3" />
+          </svg>
+        </button>
+      </div>
+      <div class="folder-name" title={folder}>{root.name}</div>
+      <div class="tree">
+        {#if rootError}
+          <p class="tree-message error">{rootError}</p>
+        {:else if root.children?.length === 0}
+          <p class="tree-message">La carpeta está vacía.</p>
+        {:else if root.children}
+          {#each root.children as child (child.path)}
+            <TreeItem node={child} depth={0} selected={activeTab} onToggle={toggle} onOpen={openFile} />
+          {/each}
+        {/if}
+      </div>
     </div>
-    <div class="folder-name" title={folder}>{root.name}</div>
-    <div class="tree">
-      {#if rootError}
-        <p class="tree-message error">{rootError}</p>
-      {:else if root.children?.length === 0}
-        <p class="tree-message">La carpeta está vacía.</p>
-      {:else if root.children}
-        {#each root.children as child (child.path)}
-          <TreeItem node={child} depth={0} selected={activeTab} onToggle={toggle} onOpen={openFile} />
-        {/each}
-      {/if}
+
+    <div class="view" class:hidden={view !== "chat"}>
+      <ChatView bind:this={chatView} session={chat} />
     </div>
   </aside>
+
+  {#if sidebarVisible}
+    <!-- A focusable separator is the ARIA window splitter pattern, which Svelte doesn't recognize as interactive. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    <div
+      class="sash"
+      role="separator"
+      aria-label="Ancho de la barra lateral"
+      aria-orientation="vertical"
+      aria-valuenow={widths[view]}
+      aria-valuemin={MIN_SIDEBAR}
+      tabindex="0"
+      onpointerdown={startResize}
+      ondblclick={() => {
+        widths[view] = DEFAULT_WIDTHS[view];
+        saveLayout();
+      }}
+      onkeydown={resizeWithKeys}
+    ></div>
+  {/if}
 
   <main class="editor">
     {#if tabs.length > 0}
@@ -169,12 +298,37 @@
   }
 
   .sidebar {
-    display: flex;
-    flex-direction: column;
-    width: 260px;
+    position: relative;
     flex-shrink: 0;
+    min-width: 0;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
+  }
+
+  .view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .sash {
+    position: relative;
+    z-index: 10;
+    width: 6px;
+    margin: 0 -3px;
+    flex-shrink: 0;
+    cursor: col-resize;
+  }
+
+  .sash:hover,
+  .sash:focus-visible {
+    outline: none;
+    background: linear-gradient(to right, transparent 2px, var(--accent) 2px, var(--accent) 4px, transparent 4px);
+    transition: background 0s 0.15s;
   }
 
   .sidebar-title {

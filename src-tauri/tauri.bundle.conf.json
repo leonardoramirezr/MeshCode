@@ -1,0 +1,10 @@
+{
+  "build": {
+    "beforeBuildCommand": "pnpm build && pnpm build:agent"
+  },
+  "bundle": {
+    "resources": {
+      "resources/agent/": "agent/"
+    }
+  }
+}

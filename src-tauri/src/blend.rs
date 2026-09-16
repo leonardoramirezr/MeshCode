@@ -12,6 +12,8 @@ use std::{
 
 use tauri::{ipc::Response, AppHandle, Manager};
 
+use crate::executable;
+
 const EXPORT_SCRIPT: &str = include_str!("export_glb.py");
 
 static CONVERSION_ID: AtomicU64 = AtomicU64::new(0);
@@ -135,30 +137,8 @@ fn error_summary(output: &Output) -> String {
     relevant[relevant.len().saturating_sub(12)..].join("\n")
 }
 
-fn find_blender() -> Option<PathBuf> {
-    let executable = if cfg!(windows) {
-        "blender.exe"
-    } else {
-        "blender"
-    };
-    let on_path: Vec<PathBuf> = std::env::var_os("PATH")
-        .map(|paths| {
-            std::env::split_paths(&paths)
-                .map(|dir| dir.join(executable))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    // Apps launched from the Finder/desktop get a minimal PATH, so install spots come before it.
-    std::env::var_os("BLENDER_PATH")
-        .map(PathBuf::from)
-        .into_iter()
-        .chain(install_locations())
-        .chain(on_path)
-        .find(|path| path.is_file())
-        // Blender locates its bundled Python scripts relative to the executable, so a symlink
-        // like /usr/local/bin/blender must be resolved to the real binary inside Blender.app.
-        .map(|path| fs::canonicalize(&path).unwrap_or(path))
+pub fn find_blender() -> Option<PathBuf> {
+    executable::find("BLENDER_PATH", "blender", install_locations())
 }
 
 #[cfg(target_os = "macos")]
@@ -166,8 +146,8 @@ fn install_locations() -> Vec<PathBuf> {
     let mut locations = vec![PathBuf::from(
         "/Applications/Blender.app/Contents/MacOS/Blender",
     )];
-    if let Some(home) = std::env::var_os("HOME") {
-        locations.push(Path::new(&home).join("Applications/Blender.app/Contents/MacOS/Blender"));
+    if let Some(home) = executable::home_dir() {
+        locations.push(home.join("Applications/Blender.app/Contents/MacOS/Blender"));
     }
     locations.extend(["/opt/homebrew/bin/blender", "/usr/local/bin/blender"].map(PathBuf::from));
     locations

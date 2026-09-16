@@ -18,6 +18,9 @@ enum MenuAction {
     ClearRecent,
     CloseFolder,
     CloseEditor,
+    ShowExplorer,
+    ShowChat,
+    ToggleSidebar,
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
@@ -78,6 +81,29 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .select_all()
         .build()?;
 
+    let view = SubmenuBuilder::new(app, "Ver")
+        .item(
+            &MenuItemBuilder::with_id("show_explorer", "Explorador")
+                .accelerator("CmdOrCtrl+Shift+E")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("show_chat", "Chat")
+                .accelerator(if cfg!(target_os = "macos") {
+                    "Ctrl+Cmd+I"
+                } else {
+                    "Ctrl+Alt+I"
+                })
+                .build(app)?,
+        )
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("toggle_sidebar", "Mostrar u ocultar la barra lateral")
+                .accelerator("CmdOrCtrl+B")
+                .build(app)?,
+        )
+        .build()?;
+
     let window = SubmenuBuilder::new(app, "Ventana")
         .minimize()
         .maximize()
@@ -100,7 +126,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             .build()?,
     );
 
-    menu.item(&file.build()?).item(&edit).item(&window).build()
+    menu.item(&file.build()?)
+        .item(&edit)
+        .item(&view)
+        .item(&window)
+        .build()
 }
 
 /// Rebuilds the menu, e.g. after the recent folders changed.
@@ -120,6 +150,9 @@ pub fn handle_event(app: &AppHandle, event: MenuEvent) {
         "clear_recent" => MenuAction::ClearRecent,
         "close_folder" => MenuAction::CloseFolder,
         "close_editor" => MenuAction::CloseEditor,
+        "show_explorer" => MenuAction::ShowExplorer,
+        "show_chat" => MenuAction::ShowChat,
+        "toggle_sidebar" => MenuAction::ToggleSidebar,
         _ => match id.strip_prefix(RECENT_PREFIX) {
             Some(path) => MenuAction::OpenRecent {
                 path: path.to_owned(),

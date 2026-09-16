@@ -69,6 +69,12 @@
         return folder && closeFolder();
       case "close_editor":
         return workbench?.closeTab();
+      case "show_explorer":
+        return workbench?.showView("explorer");
+      case "show_chat":
+        return workbench?.showView("chat");
+      case "toggle_sidebar":
+        return workbench?.toggleSidebar();
     }
   }
 </script>
