@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "meshcode",
+  "productName": "MeshCode",
   "version": "0.1.0",
   "identifier": "com.leonardo.meshcode",
   "build": {
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "meshcode",
-        "width": 800,
-        "height": 600
+        "title": "MeshCode",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 720,
+        "minHeight": 480
       }
     ],
     "security": {

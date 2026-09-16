@@ -1,156 +1,89 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { message, open } from "@tauri-apps/plugin-dialog";
+  import { api, basename, onMenuAction, subscribe, type MenuAction } from "$lib/api";
+  import Welcome from "$lib/components/Welcome.svelte";
+  import Workbench from "$lib/components/Workbench.svelte";
 
-  let name = $state("");
-  let greetMsg = $state("");
+  let folder = $state<string | null>(null);
+  let recent = $state<string[]>([]);
+  let error = $state<string | null>(null);
+  let workbench = $state<Workbench>();
 
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
+  onMount(() => {
+    refreshRecent();
+    return subscribe(onMenuAction(handleMenuAction));
+  });
+
+  $effect(() => {
+    getCurrentWindow().setTitle(folder ? `${basename(folder)} — MeshCode` : "MeshCode");
+  });
+
+  async function refreshRecent() {
+    recent = await api.recentFolders();
+  }
+
+  async function openFolder(path: string) {
+    try {
+      folder = await api.openFolder(path);
+      error = null;
+    } catch (e) {
+      // The welcome page shows errors inline; with a folder open, keep it and show a dialog instead.
+      if (folder) await message(String(e), { title: "MeshCode", kind: "error" });
+      else error = String(e);
+    }
+    await refreshRecent();
+  }
+
+  async function pickFolder() {
+    const selected = await open({ directory: true, multiple: false, title: "Abrir carpeta" });
+    if (typeof selected === "string") await openFolder(selected);
+  }
+
+  async function closeFolder() {
+    await api.closeFolder();
+    folder = null;
+    await refreshRecent();
+  }
+
+  async function removeRecent(path: string) {
+    await api.removeRecentFolder(path);
+    await refreshRecent();
+  }
+
+  async function clearRecent() {
+    await api.clearRecentFolders();
+    await refreshRecent();
+  }
+
+  function handleMenuAction(menu: MenuAction) {
+    switch (menu.action) {
+      case "open_folder":
+        return pickFolder();
+      case "open_recent":
+        return openFolder(menu.path);
+      case "clear_recent":
+        return clearRecent();
+      case "close_folder":
+        return folder && closeFolder();
+      case "close_editor":
+        return workbench?.closeTab();
+    }
   }
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
-
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-</main>
-
-<style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-
-</style>
+{#if folder}
+  {#key folder}
+    <Workbench bind:this={workbench} {folder} onCloseFolder={closeFolder} />
+  {/key}
+{:else}
+  <Welcome
+    {recent}
+    {error}
+    onOpenFolder={pickFolder}
+    onOpenRecent={openFolder}
+    onRemoveRecent={removeRecent}
+    onClearRecent={clearRecent}
+  />
+{/if}
