@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>MeshCode — destello de malla</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a2a"/>
+      <stop offset="1" stop-color="#161616"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- facetas -->
+  <g stroke-linejoin="round">
+    <polygon points="246,82 224.8,152.8 246,152.8" fill="#f8ba75" stroke="#f8ba75" stroke-width="1"/>
+    <polygon points="224.8,152.8 187.1,207.1 246,152.8" fill="#fbc789" stroke="#fbc789" stroke-width="1"/>
+    <polygon points="246,152.8 187.1,207.1 246,266" fill="#fcca8f" stroke="#fcca8f" stroke-width="1"/>
+    <polygon points="246,82 267.2,152.8 246,152.8" fill="#a95504" stroke="#a95504" stroke-width="1"/>
+    <polygon points="267.2,152.8 304.9,207.1 246,152.8" fill="#c46608" stroke="#c46608" stroke-width="1"/>
+    <polygon points="246,152.8 304.9,207.1 246,266" fill="#d4700a" stroke="#d4700a" stroke-width="1"/>
+    <polygon points="430,266 359.2,244.8 359.2,266" fill="#f2a551" stroke="#f2a551" stroke-width="1"/>
+    <polygon points="359.2,244.8 304.9,207.1 359.2,266" fill="#e98013" stroke="#e98013" stroke-width="1"/>
+    <polygon points="359.2,266 304.9,207.1 246,266" fill="#f7b870" stroke="#f7b870" stroke-width="1"/>
+    <polygon points="430,266 359.2,287.2 359.2,266" fill="#8f4400" stroke="#8f4400" stroke-width="1"/>
+    <polygon points="359.2,287.2 304.9,324.9 359.2,266" fill="#8f4400" stroke="#8f4400" stroke-width="1"/>
+    <polygon points="359.2,266 304.9,324.9 246,266" fill="#9f4e02" stroke="#9f4e02" stroke-width="1"/>
+    <polygon points="246,450 267.2,379.2 246,379.2" fill="#8f4400" stroke="#8f4400" stroke-width="1"/>
+    <polygon points="267.2,379.2 304.9,324.9 246,379.2" fill="#8f4400" stroke="#8f4400" stroke-width="1"/>
+    <polygon points="246,379.2 304.9,324.9 246,266" fill="#ab5604" stroke="#ab5604" stroke-width="1"/>
+    <polygon points="246,450 224.8,379.2 246,379.2" fill="#eb881f" stroke="#eb881f" stroke-width="1"/>
+    <polygon points="224.8,379.2 187.1,324.9 246,379.2" fill="#c96909" stroke="#c96909" stroke-width="1"/>
+    <polygon points="246,379.2 187.1,324.9 246,266" fill="#f1a149" stroke="#f1a149" stroke-width="1"/>
+    <polygon points="62,266 132.8,287.2 132.8,266" fill="#8f4400" stroke="#8f4400" stroke-width="1"/>
+    <polygon points="132.8,287.2 187.1,324.9 132.8,266" fill="#a25003" stroke="#a25003" stroke-width="1"/>
+    <polygon points="132.8,266 187.1,324.9 246,266" fill="#bd6207" stroke="#bd6207" stroke-width="1"/>
+    <polygon points="62,266 132.8,244.8 132.8,266" fill="#fcca8f" stroke="#fcca8f" stroke-width="1"/>
+    <polygon points="132.8,244.8 187.1,207.1 132.8,266" fill="#fdcd93" stroke="#fdcd93" stroke-width="1"/>
+    <polygon points="132.8,266 187.1,207.1 246,266" fill="#ffd6a3" stroke="#ffd6a3" stroke-width="1"/>
+  </g>
+  <!-- aristas -->
+  <g stroke="#ffffff" stroke-opacity="0.3" stroke-width="2.5" stroke-linecap="round">
+    <line x1="246" y1="152.8" x2="224.8" y2="152.8"/>
+    <line x1="246" y1="152.8" x2="246" y2="82"/>
+    <line x1="246" y1="152.8" x2="187.1" y2="207.1"/>
+    <line x1="187.1" y1="207.1" x2="246" y2="266"/>
+    <line x1="246" y1="266" x2="246" y2="152.8"/>
+    <line x1="246" y1="152.8" x2="267.2" y2="152.8"/>
+    <line x1="246" y1="152.8" x2="304.9" y2="207.1"/>
+    <line x1="304.9" y1="207.1" x2="246" y2="266"/>
+    <line x1="359.2" y1="266" x2="359.2" y2="244.8"/>
+    <line x1="359.2" y1="266" x2="430" y2="266"/>
+    <line x1="359.2" y1="266" x2="304.9" y2="207.1"/>
+    <line x1="246" y1="266" x2="359.2" y2="266"/>
+    <line x1="359.2" y1="266" x2="359.2" y2="287.2"/>
+    <line x1="359.2" y1="266" x2="304.9" y2="324.9"/>
+    <line x1="304.9" y1="324.9" x2="246" y2="266"/>
+    <line x1="246" y1="379.2" x2="267.2" y2="379.2"/>
+    <line x1="246" y1="379.2" x2="246" y2="450"/>
+    <line x1="246" y1="379.2" x2="304.9" y2="324.9"/>
+    <line x1="246" y1="266" x2="246" y2="379.2"/>
+    <line x1="246" y1="379.2" x2="224.8" y2="379.2"/>
+    <line x1="246" y1="379.2" x2="187.1" y2="324.9"/>
+    <line x1="187.1" y1="324.9" x2="246" y2="266"/>
+    <line x1="132.8" y1="266" x2="132.8" y2="287.2"/>
+    <line x1="132.8" y1="266" x2="62" y2="266"/>
+    <line x1="132.8" y1="266" x2="187.1" y2="324.9"/>
+    <line x1="246" y1="266" x2="132.8" y2="266"/>
+    <line x1="132.8" y1="266" x2="132.8" y2="244.8"/>
+    <line x1="132.8" y1="266" x2="187.1" y2="207.1"/>
+  </g>
+  <!-- vértices -->
+  <g fill="#ffffff">
+    <circle cx="246" cy="152.8" r="6"/>
+    <circle cx="359.2" cy="266" r="6"/>
+    <circle cx="246" cy="379.2" r="6"/>
+    <circle cx="132.8" cy="266" r="6"/>
+    <circle cx="187.1" cy="207.1" r="6"/>
+    <circle cx="304.9" cy="207.1" r="6"/>
+    <circle cx="304.9" cy="324.9" r="6"/>
+    <circle cx="187.1" cy="324.9" r="6"/>
+  </g>
+  <circle cx="246" cy="266" r="11" fill="#ffffff"/>
+  <!-- destello secundario -->
+  <path d="M404,62 Q410.4,101.6 450,108 Q410.4,114.4 404,154 Q397.6,114.4 358,108 Q397.6,101.6 404,62Z" fill="#4daafc"/>
+</svg>
