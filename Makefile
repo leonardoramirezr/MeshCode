@@ -4,7 +4,7 @@ TAURI_DIR := src-tauri
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev dev-web build build-debug build-web build-agent preview check check-rust fmt lint test clean clean-all
+.PHONY: help install dev dev-web kill-port build build-debug build-web build-agent preview check check-rust fmt lint test clean clean-all
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -18,6 +18,9 @@ install: ## Instala dependencias de JS
 
 dev: node_modules ## Ejecuta la app de Tauri en modo desarrollo
 	$(PNPM) tauri dev
+
+kill-dev-server: ## Mata el proceso que ocupa el puerto 1420 (Vite)
+	-lsof -tiTCP:1420 -sTCP:LISTEN | xargs kill
 
 dev-web: node_modules ## Ejecuta solo el frontend (Vite) en modo desarrollo
 	$(PNPM) dev
