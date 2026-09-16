@@ -141,6 +141,18 @@ export class ModelViewer {
     this.syncLookFromCamera();
   }
 
+  /** Jumps to the model center: walk mode stands the camera there, orbit mode pivots around it. */
+  goToCenter(): void {
+    if (this.mode === "walk") {
+      this.camera.position.copy(this.modelCenter);
+    } else {
+      const offset = this.camera.position.clone().sub(this.orbit.target);
+      this.orbit.target.copy(this.modelCenter);
+      this.camera.position.copy(this.modelCenter).add(offset);
+      this.orbit.update();
+    }
+  }
+
   dispose(): void {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
@@ -260,8 +272,9 @@ export class ModelViewer {
   private handleMouseMove = (event: MouseEvent): void => {
     if (this.mode !== "walk") return;
     if (!this.dragging && document.pointerLockElement !== this.canvas) return;
-    this.yaw -= event.movementX * LOOK_SENSITIVITY;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - event.movementY * LOOK_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
+    // Inverted: moving the mouse drags the scene rather than pointing the camera.
+    this.yaw += event.movementX * LOOK_SENSITIVITY;
+    this.pitch = THREE.MathUtils.clamp(this.pitch + event.movementY * LOOK_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
     this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, "YXZ"));
   };
 

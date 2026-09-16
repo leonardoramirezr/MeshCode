@@ -89,6 +89,14 @@
     <button class="tool" onclick={() => viewer?.frameModel()} title="Encuadrar el modelo completo">
       Encuadrar
     </button>
+    <button class="tool" onclick={() => viewer?.goToCenter()} title="Ir al centro del modelo">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" />
+        <path d="M8 1v3M8 12v3M1 8h3M12 8h3" stroke="currentColor" />
+        <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+      </svg>
+      Centro
+    </button>
     <div class="spacer"></div>
     {#if loading}
       <span class="status"><span class="spinner"></span>{loaded ? "Actualizando…" : "Convirtiendo con Blender…"}</span>
