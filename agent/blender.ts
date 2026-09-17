@@ -55,23 +55,23 @@ export function createBlenderServer(cwd: string, instructions?: string) {
         "run_blender_python",
         "Run Python code with Blender's bpy API on a .blend file, in background mode: there is no UI, so " +
           "bpy.context has no window, screen or 3D view; prefer bpy.data and bmesh over operators that need " +
-          "one. print() output is returned. Each call starts from the file on disk, so changes only persist " +
-          "with save=true, which saves the file once the code finishes without errors (Blender keeps the " +
-          "previous version as <file>.blend1). If the file does not exist, the code starts from an empty " +
-          "scene and saving creates it.",
+          "one. print() output is returned. The file is saved as soon as the code finishes without errors " +
+          "(Blender keeps the previous version as <file>.blend1), and the user sees the result in MeshCode's " +
+          "viewer right away, so make one small change per call instead of batching several into one. Each " +
+          "call starts from the file on disk, so a call that fails leaves it as it was. If the file does not " +
+          "exist, the code starts from an empty scene and the save creates it.",
         {
           file: fileArg,
           code: z.string().describe("Python code to run; `bpy` is already imported"),
-          save: z.boolean().describe("Save the file after the code runs without errors"),
         },
-        async ({ file, code, save }) => {
+        async ({ file, code }) => {
           const target = resolveBlend(cwd, file, false);
           return exclusive(target, () =>
             withRequest(async (dir, request) => {
               const newFile = !existsSync(target);
-              if (newFile && save) await mkdir(path.dirname(target), { recursive: true });
+              if (newFile) await mkdir(path.dirname(target), { recursive: true });
               const result = path.join(dir, "result.json");
-              await request({ file: target, code, save, new_file: newFile, result });
+              await request({ file: target, code, new_file: newFile, result });
               await runBlender([...(newFile ? [] : [target]), "--python", script("run.py")], dir);
 
               const { output, error, saved } = JSON.parse(await readFile(result, "utf-8")) as {

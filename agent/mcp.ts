@@ -10,10 +10,10 @@ const instructions = `MeshCode, the app this session runs in, shows the .blend f
 
 .blend files are binary, so never read or write them with Read, Edit, Write or Bash; use this server's tools instead:
 - inspect_blend summarizes a file (scenes, collections, objects, materials). Start there.
-- run_blender_python runs bpy code on a file and can save the result. Use it for every change, and to create new .blend files.
+- run_blender_python runs bpy code on a file and saves it. Use it for every change, and to create new .blend files.
 - render_preview renders an image of a file so you can check your changes visually.
 
-Work in small, verified steps: inspect, change and save, then inspect or render again to confirm the result.`;
+Every run_blender_python call writes the file, and the user watches each write appear in the viewer. So work in small, verified steps: inspect, then one change per call, then inspect or render again to confirm the result. Don't put several unrelated changes in one call to save a round trip; the user would only see the end result.`;
 
 const server = createBlenderServer(process.argv[2] ?? process.cwd(), instructions);
 await server.instance.connect(new StdioServerTransport());

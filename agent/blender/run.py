@@ -1,5 +1,5 @@
 # Runs inside Blender (background mode): executes Python code against the opened file (or a new,
-# empty one) and optionally saves it.
+# empty one) and saves it, so every call shows up in MeshCode's viewer.
 # Usage: blender -b [file.blend] --python run.py -- request.json
 import contextlib
 import io
@@ -28,7 +28,7 @@ except BaseException as error:  # noqa: BLE001 - report SystemExit too instead o
     frames = error.__traceback__.tb_next if error.__traceback__ else None
     result["error"] = "".join(traceback.format_exception(type(error), error, frames))
 
-if result["error"] is None and request["save"]:
+if result["error"] is None:
     try:
         bpy.ops.wm.save_as_mainfile(filepath=request["file"])
         result["saved"] = True

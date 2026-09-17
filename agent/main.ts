@@ -25,10 +25,10 @@ You are the assistant inside MeshCode, a desktop app for viewing and editing Ble
 
 Your main job is editing the .blend files in this folder. They are binary, so never read or write them with Read, Edit, Write or Bash; use the Blender tools instead:
 - ${BLENDER_TOOLS.inspect} summarizes a file (scenes, collections, objects, materials). Start there.
-- ${BLENDER_TOOLS.run} runs bpy code on a file and can save the result. Use it for every change, and to create new .blend files.
+- ${BLENDER_TOOLS.run} runs bpy code on a file and saves it. Use it for every change, and to create new .blend files.
 - ${BLENDER_TOOLS.render} renders an image of a file so you can check your changes visually.
 
-Work in small, verified steps: inspect, change and save, then inspect or render again to confirm the result.`;
+Every ${BLENDER_TOOLS.run} call writes the file, and the user watches each write appear in the viewer. So work in small, verified steps: inspect, then one change per call, then inspect or render again to confirm the result. Don't put several unrelated changes in one call to save a round trip; the user would only see the end result.`;
 
 /** The session's prompt stream: user messages are pushed as they arrive from the app. */
 class InputQueue implements AsyncIterable<SDKUserMessage> {
@@ -142,8 +142,9 @@ class Session {
 
   private canUseTool: CanUseTool = async (toolName, input, options) => {
     if (toolName === BLENDER_TOOLS.run) {
-      if (this.permissionMode === "plan" && input.save) {
-        return { behavior: "deny", message: "Plan mode is active: don't save files until the plan is approved." };
+      // The tool always saves, so in plan mode it can't run at all; inspect and render still can.
+      if (this.permissionMode === "plan") {
+        return { behavior: "deny", message: "Plan mode is active: don't edit files until the plan is approved." };
       }
       // Blender edits are file edits, so "accept edits" covers them like Edit and Write do.
       if (this.permissionMode === "acceptEdits" && isInside(this.cwd, String(input.file ?? ""))) {

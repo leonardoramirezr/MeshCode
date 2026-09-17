@@ -40,8 +40,8 @@ The selector in the chat header chooses what it works with: **Anthropic API** or
 
 The chat uses the Claude Agent SDK to edit the files in the open folder. Its main function is `.blend` files:
 the agent has tools that run Blender in the background to inspect a file, modify it with `bpy` code
-(or create a new one), and render a preview to check the result. Each save keeps the previous version as
-`file.blend1`, and the viewer shows the changes as soon as they're saved.
+(or create a new one), and render a preview to check the result. Every `bpy` run saves the file, so each step
+the agent takes shows up in the viewer right away; Blender keeps the previous version as `file.blend1`.
 
 - **API key**: the first time, paste your Anthropic API key. It's stored in the system keychain; `ANTHROPIC_API_KEY`
   is also used if defined. Usage is billed to that API account.

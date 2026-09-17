@@ -32,7 +32,7 @@ export function describeTool(name: string, input: Record<string, unknown> | null
     case BLENDER_TOOLS.inspect:
       return { label: "Inspeccionar", detail: file("file") };
     case BLENDER_TOOLS.run:
-      return { label: input?.save ? "Editar con Blender" : "Ejecutar en Blender", detail: file("file") };
+      return { label: "Editar con Blender", detail: file("file") };
     case BLENDER_TOOLS.render:
       return { label: "Vista previa", detail: file("file") };
     case "Read":
