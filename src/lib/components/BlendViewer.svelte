@@ -1,15 +1,28 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { api } from "$lib/api";
+  import { api, type AgentView } from "$lib/api";
   import { ModelViewer, type NavigationMode } from "$lib/viewer/ModelViewer";
 
   interface Props {
     path: string;
     /** Bumped whenever the file changes on disk. */
     version: number;
+    /** The agent's last visual check, of this file or another one. */
+    agentView: AgentView | null;
   }
 
-  let { path, version }: Props = $props();
+  let { path, version, agentView }: Props = $props();
+
+  const VIEW_LABELS: Record<string, string> = {
+    isometric: "isométrica",
+    front: "frontal",
+    back: "trasera",
+    left: "izquierda",
+    right: "derecha",
+    top: "superior",
+    camera: "cámara de la escena",
+    custom: "cámara propia",
+  };
 
   let container: HTMLDivElement;
   let viewer: ModelViewer | null = null;
@@ -20,6 +33,9 @@
   let speed = $state(1);
   let pointerLocked = $state(false);
   let requestId = 0;
+
+  /** The agent's last preview of the file being shown, which is what the agent view shows. */
+  let view = $state<AgentView | null>(null);
 
   onMount(() => {
     viewer = new ModelViewer(container);
@@ -36,6 +52,13 @@
     void path;
     void version;
     untrack(load);
+  });
+
+  // Each preview the agent renders to check its work moves the agent view to that camera.
+  $effect(() => {
+    if (!agentView || !samePath(agentView.file, path)) return;
+    view = agentView;
+    viewer?.setAgentCamera(agentView);
   });
 
   async function load() {
@@ -58,6 +81,11 @@
   function setMode(next: NavigationMode) {
     mode = next;
     viewer?.setMode(next);
+  }
+
+  /** The agent and the explorer resolve paths separately, so only their case can differ. */
+  function samePath(a: string, b: string) {
+    return a.toLowerCase() === b.toLowerCase();
   }
 </script>
 
@@ -84,6 +112,17 @@
           />
         </svg>
         Caminar
+      </button>
+      <button
+        class:active={mode === "agent"}
+        onclick={() => setMode("agent")}
+        title="Ver lo que ve el agente: la cámara de su última vista previa"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M1.2 8S3.8 3.8 8 3.8 14.8 8 14.8 8 12.2 12.2 8 12.2 1.2 8 1.2 8z" fill="none" stroke="currentColor" />
+          <circle cx="8" cy="8" r="1.9" fill="currentColor" />
+        </svg>
+        Vista de Agente
       </button>
     </div>
     <button class="tool" onclick={() => viewer?.frameModel()} title="Encuadrar el modelo completo">
@@ -112,6 +151,17 @@
         <span><kbd>Shift</kbd> correr</span>
         <span>Rueda: velocidad ×{speed.toFixed(2)}</span>
         <span>{pointerLocked ? "Esc para liberar el ratón" : "Haz clic o arrastra para mirar"}</span>
+      </div>
+    {/if}
+
+    {#if mode === "agent" && loaded}
+      <div class="hint">
+        {#if view}
+          <span>Vista del agente: {VIEW_LABELS[view.view] ?? view.view}</span>
+          <span>Se actualiza con cada vista previa que renderiza</span>
+        {:else}
+          <span>El agente aún no ha renderizado una vista previa de este archivo</span>
+        {/if}
       </div>
     {/if}
 

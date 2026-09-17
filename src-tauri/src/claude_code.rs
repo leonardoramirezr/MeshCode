@@ -22,7 +22,7 @@ use tauri::{
     AppHandle, Manager,
 };
 
-use crate::{agent, blend};
+use crate::{agent, agent_view, blend};
 
 /// The name Claude Code knows MeshCode's MCP server (`agent/mcp.ts`) by.
 const MCP_SERVER: &str = "meshcode";
@@ -225,9 +225,14 @@ fn command(app: &AppHandle, cwd: &str) -> Result<CommandBuilder, String> {
         // Makes the tools available from the first message, instead of once the server has started.
         "alwaysLoad": true,
     });
+    let mut env = json!({});
     if let Some(blender) = blend::find_blender() {
-        server["env"] = json!({ "MESHCODE_BLENDER": blender.to_string_lossy() });
+        env["MESHCODE_BLENDER"] = blender.to_string_lossy().into();
     }
+    if let Some(view) = agent_view::file(app) {
+        env["MESHCODE_AGENT_VIEW"] = view.to_string_lossy().into();
+    }
+    server["env"] = env;
     let read_only_tools = READ_ONLY_TOOLS.map(|tool| format!("mcp__{MCP_SERVER}__{tool}"));
 
     let program = std::env::var_os("MESHCODE_CLAUDE")

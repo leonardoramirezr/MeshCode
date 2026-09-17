@@ -1,6 +1,16 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { api, basename, isBlendFile, onFsChange, onGitChange, subscribe, type FsChange } from "$lib/api";
+  import {
+    api,
+    basename,
+    isBlendFile,
+    onAgentView,
+    onFsChange,
+    onGitChange,
+    subscribe,
+    type AgentView,
+    type FsChange,
+  } from "$lib/api";
   import { ClaudeCodeSession } from "$lib/chat/claude-code.svelte";
   import { preferences } from "$lib/chat/preferences";
   import { ChatSession } from "$lib/chat/session.svelte";
@@ -28,6 +38,8 @@
   let activeTab = $state<string | null>(null);
   /** Per-file counter bumped on disk changes so the open viewer reloads. */
   let versions = $state<Record<string, number>>({});
+  /** The camera of the agent's last visual check, whichever file it was of. */
+  let agentView = $state<AgentView | null>(null);
 
   const LAYOUT_KEY = "meshcode.layout";
   const MIN_SIDEBAR = 180;
@@ -54,6 +66,7 @@
     loadChildren(root);
     const disconnectChat = chat.connect();
     const unlisten = subscribe(onFsChange(handleFsChange));
+    const unlistenView = subscribe(onAgentView((next) => (agentView = next)));
     scm.refresh();
     // Commits, checkouts and the like can also happen outside MeshCode, e.g. from Claude Code.
     const refreshScm = () => scm.refresh();
@@ -61,6 +74,7 @@
     window.addEventListener("focus", refreshScm);
     return () => {
       unlisten();
+      unlistenView();
       unlistenGit();
       window.removeEventListener("focus", refreshScm);
       disconnectChat();
@@ -317,7 +331,7 @@
         </div>
       {:else if isBlendFile(activeTab)}
         {#key activeTab}
-          <BlendViewer path={activeTab} version={versions[activeTab] ?? 0} />
+          <BlendViewer path={activeTab} version={versions[activeTab] ?? 0} {agentView} />
         {/key}
       {:else}
         <div class="empty">

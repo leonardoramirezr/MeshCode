@@ -19,7 +19,7 @@ use std::{
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{auth, blend, executable};
+use crate::{agent_view, auth, blend, executable};
 
 const EVENT: &str = "agent-event";
 /// Stderr lines kept to explain an unexpected exit.
@@ -69,6 +69,9 @@ pub async fn agent_start(app: AppHandle) -> Result<(), String> {
         .env("CLAUDE_CONFIG_DIR", &config_dir);
     if let Some(blender) = blend::find_blender() {
         command.env("MESHCODE_BLENDER", blender);
+    }
+    if let Some(view) = agent_view::file(&app) {
+        command.env("MESHCODE_AGENT_VIEW", view);
     }
     if !cfg!(debug_assertions) {
         // Bundles have no node_modules for the SDK to find its Claude Code binary in.

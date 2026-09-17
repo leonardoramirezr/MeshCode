@@ -25,6 +25,8 @@ or with your own Claude Code and the limits of your Claude plan.
    - **Orbit**: drag to orbit, right-click to pan, scroll to zoom.
    - **Walk**: `W` `A` `S` `D` to move, `3` to go up, `X` to go down, `Shift` to run,
      scroll to change speed. Click or drag in the viewer to look around with the mouse (`Esc` releases the mouse).
+   - **Agent view** (*Vista de Agente*): the camera of the last preview the chat's agent rendered to check its work.
+     Every preview it renders from then on moves the view, so you watch what it is looking at.
 4. If the file changes on disk (for example, when saved in Blender), the viewer updates automatically.
 
 Converted models are saved in the app's cache folder, so reopening an unchanged file is instant.

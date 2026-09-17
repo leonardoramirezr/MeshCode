@@ -1,6 +1,8 @@
 import { invoke, type Channel } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AgentCommand, AgentEvent } from "../../agent/protocol";
+import type { AgentCommand, AgentEvent, AgentView } from "../../agent/protocol";
+
+export type { AgentView };
 
 export interface DirEntry {
   name: string;
@@ -123,6 +125,10 @@ export const onGitChange = (handler: () => void): Promise<UnlistenFn> => listen(
 
 export const onAgentEvent = (handler: (event: AgentEvent) => void): Promise<UnlistenFn> =>
   listen<AgentEvent>("agent-event", (event) => handler(event.payload));
+
+/** The camera of the agent's last visual check, so the viewer can show the same framing. */
+export const onAgentView = (handler: (view: AgentView) => void): Promise<UnlistenFn> =>
+  listen<AgentView>("agent-view", (event) => handler(event.payload));
 
 export const onMenuAction = (handler: (action: MenuAction) => void): Promise<UnlistenFn> =>
   listen<MenuAction>("menu", (event) => handler(event.payload));

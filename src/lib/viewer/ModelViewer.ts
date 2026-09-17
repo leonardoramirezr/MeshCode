@@ -2,8 +2,9 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import type { AgentCamera } from "../../../agent/protocol";
 
-export type NavigationMode = "orbit" | "walk";
+export type NavigationMode = "orbit" | "walk" | "agent";
 
 const MOVE_KEYS: Record<string, [right: number, forward: number]> = {
   KeyW: [0, 1],
@@ -15,11 +16,15 @@ const MOVE_KEYS: Record<string, [right: number, forward: number]> = {
 const UP_KEYS = new Set(["Digit3", "Numpad3", "KeyE"]);
 const DOWN_KEYS = new Set(["KeyX"]);
 
+const DEFAULT_FOV = 50;
+/** Blender is Z up and the model is exported Y up, so agent cameras are turned the same way. */
+const BLENDER_TO_VIEWER = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+
 const LOOK_SENSITIVITY = 0.0025;
 const RUN_MULTIPLIER = 3;
 const MAX_PITCH = Math.PI / 2 - 0.01;
 
-/** three.js scene that shows a GLB model with orbit and first-person walk navigation. */
+/** three.js scene that shows a GLB model with orbit, first-person walk and agent-view navigation. */
 export class ModelViewer {
   onSpeedChange?: (factor: number) => void;
   onPointerLockChange?: (locked: boolean) => void;
@@ -27,7 +32,7 @@ export class ModelViewer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly canvas: HTMLCanvasElement;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
+  private readonly camera = new THREE.PerspectiveCamera(DEFAULT_FOV, 1, 0.01, 1000);
   private readonly orbit: OrbitControls;
   private readonly loader = new GLTFLoader();
   private readonly timer = new THREE.Timer();
@@ -40,6 +45,8 @@ export class ModelViewer {
   private modelSize = 1;
 
   private mode: NavigationMode = "orbit";
+  /** Camera of the agent's last preview of this file, shown by the agent view. */
+  private agentCamera: AgentCamera | null = null;
   private yaw = 0;
   private pitch = 0;
   private dragging = false;
@@ -114,12 +121,11 @@ export class ModelViewer {
     this.mode = mode;
     this.pressed.clear();
     this.dragging = false;
+    if (mode !== "walk" && document.pointerLockElement === this.canvas) document.exitPointerLock();
+    // Only the agent view narrows the field of view, to match the preview it shows.
+    this.setFov(DEFAULT_FOV);
 
-    if (mode === "walk") {
-      this.orbit.enabled = false;
-      this.syncLookFromCamera();
-    } else {
-      if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+    if (mode === "orbit") {
       // Orbit around a point ahead of the camera, roughly as deep as the model center.
       const direction = this.camera.getWorldDirection(new THREE.Vector3());
       const depth = this.modelCenter.clone().sub(this.camera.position).dot(direction);
@@ -127,7 +133,21 @@ export class ModelViewer {
       this.orbit.target.copy(this.camera.position).addScaledVector(direction, distance);
       this.orbit.enabled = true;
       this.orbit.update();
+      return;
     }
+
+    this.orbit.enabled = false;
+    if (mode === "walk") this.syncLookFromCamera();
+    else this.showAgentCamera();
+  }
+
+  /**
+   * Takes the camera of an agent preview. The agent view jumps to it right away, so every visual
+   * check the agent makes moves the user's view; the other modes keep it for when it is turned on.
+   */
+  setAgentCamera(camera: AgentCamera): void {
+    this.agentCamera = camera;
+    if (this.mode === "agent") this.showAgentCamera();
   }
 
   /** Moves the camera so the whole model is in view. */
@@ -141,15 +161,15 @@ export class ModelViewer {
     this.syncLookFromCamera();
   }
 
-  /** Jumps to the model center: walk mode stands the camera there, orbit mode pivots around it. */
+  /** Jumps to the model center: orbit mode pivots around it, the other modes stand the camera there. */
   goToCenter(): void {
-    if (this.mode === "walk") {
-      this.camera.position.copy(this.modelCenter);
-    } else {
+    if (this.mode === "orbit") {
       const offset = this.camera.position.clone().sub(this.orbit.target);
       this.orbit.target.copy(this.modelCenter);
       this.camera.position.copy(this.modelCenter).add(offset);
       this.orbit.update();
+    } else {
+      this.camera.position.copy(this.modelCenter);
     }
   }
 
@@ -179,7 +199,7 @@ export class ModelViewer {
     // Clamp so a stalled frame (e.g. while a model is parsed) doesn't teleport the camera.
     const delta = Math.min(this.timer.getDelta(), 0.1);
     if (this.mode === "walk") this.walk(delta);
-    else this.orbit.update();
+    else if (this.mode === "orbit") this.orbit.update();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -213,6 +233,25 @@ export class ModelViewer {
   private baseWalkSpeed(): number {
     // Scale with the model so a house and a teacup are both comfortable to walk around.
     return THREE.MathUtils.clamp(this.modelSize / 8, 0.05, 20);
+  }
+
+  /** Places the camera where the agent's last preview was rendered from. */
+  private showAgentCamera(): void {
+    if (!this.agentCamera) return;
+    const [x, y, z] = this.agentCamera.location;
+    const [qx, qy, qz, qw] = this.agentCamera.rotation;
+    this.camera.position.set(x, z, -y);
+    this.camera.quaternion.copy(BLENDER_TO_VIEWER).multiply(new THREE.Quaternion(qx, qy, qz, qw));
+    // The viewport is rarely as wide as the preview, so open the angle until all of it fits.
+    const fitted = 2 * Math.atan(Math.tan(this.agentCamera.fovX / 2) / this.camera.aspect);
+    this.setFov(THREE.MathUtils.radToDeg(Math.max(this.agentCamera.fovY, fitted)));
+    this.syncLookFromCamera();
+  }
+
+  private setFov(degrees: number): void {
+    if (this.camera.fov === degrees) return;
+    this.camera.fov = degrees;
+    this.camera.updateProjectionMatrix();
   }
 
   private syncLookFromCamera(): void {
@@ -249,6 +288,7 @@ export class ModelViewer {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    if (this.mode === "agent") this.showAgentCamera();
   }
 
   private handleMouseDown = (event: MouseEvent): void => {

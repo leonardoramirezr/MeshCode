@@ -2,13 +2,13 @@
 // Blender itself, running in background mode with the scripts in ./blender/.
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { BLENDER_SERVER, BLENDER_TOOLS } from "./protocol.ts";
+import { BLENDER_SERVER, BLENDER_TOOLS, type AgentCamera, type AgentView } from "./protocol.ts";
 
 const SCRIPTS_DIR = fileURLToPath(new URL("./blender/", import.meta.url));
 const TIMEOUT_MS = 10 * 60_000;
@@ -115,9 +115,11 @@ export function createBlenderServer(cwd: string, instructions?: string) {
           return exclusive(target, () =>
             withRequest(async (dir, request) => {
               const output = path.join(dir, "preview.jpg");
-              await request({ output, view, focus, camera, width, height });
+              const cameraOut = path.join(dir, "camera.json");
+              await request({ output, view, focus, camera, width, height, camera_out: cameraOut });
               await runBlender([target, "--python", script("render.py")], dir);
               const image = await readFile(output);
+              await publishView(target, camera ? "custom" : view, cameraOut);
               return {
                 content: [
                   { type: "image", data: image.toString("base64"), mimeType: "image/jpeg" },
@@ -136,6 +138,26 @@ export function createBlenderServer(cwd: string, instructions?: string) {
 const script = (name: string) => path.join(SCRIPTS_DIR, name);
 
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }] });
+
+/**
+ * Hands the camera of a preview to MeshCode, which moves the user's viewer there when they have
+ * the agent view active, so they see what was just checked. Renamed into place so the app never
+ * reads a half-written file. The render already succeeded, so failures here are ignored.
+ */
+async function publishView(file: string, view: string, cameraFile: string): Promise<void> {
+  const destination = process.env.MESHCODE_AGENT_VIEW;
+  if (!destination) return;
+  try {
+    const camera = JSON.parse(await readFile(cameraFile, "utf-8")) as AgentCamera;
+    const agentView: AgentView = { ...camera, file, view, at: Date.now() };
+    const temp = `${destination}.${process.pid}.tmp`;
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(temp, JSON.stringify(agentView));
+    await rename(temp, destination);
+  } catch {
+    // The viewer keeps the camera it has.
+  }
+}
 
 function resolveBlend(cwd: string, file: string, mustExist: boolean): string {
   const target = path.resolve(cwd, file);

@@ -18,6 +18,26 @@ export const BLENDER_TOOLS = {
   render: `mcp__${BLENDER_SERVER}__render_preview`,
 } as const;
 
+/** The camera a `render_preview` call used, in Blender's world space (Z up). */
+export interface AgentCamera {
+  location: [number, number, number];
+  /** Rotation quaternion, in x, y, z, w order. */
+  rotation: [number, number, number, number];
+  /** Field of view of the rendered image, in radians. */
+  fovX: number;
+  fovY: number;
+}
+
+/** What the agent last checked visually, written by `render_preview` for the app's viewer. */
+export interface AgentView extends AgentCamera {
+  /** Absolute path of the .blend file that was rendered. */
+  file: string;
+  /** The preview's viewing direction: `isometric`, `front`, `camera`, `custom`… */
+  view: string;
+  /** When it was rendered, in epoch milliseconds. */
+  at: number;
+}
+
 export interface SessionConfig {
   /** Chosen by the app; events from the session carry it so stale ones can be ignored. */
   session: number;
